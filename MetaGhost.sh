@@ -22,7 +22,7 @@ banner() {
 # Check dependencies
 check_dependencies() {
     if ! command -v exiftool &> /dev/null; then
-        echo "[!] exiftool not found. Installing..."
+        echo "[!] some tools not found. Installing..."
         pkg update && pkg install exiftool -y
     fi
 }
