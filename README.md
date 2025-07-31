@@ -1,5 +1,4 @@
-# MetaGhost
-An advance tool for termux which gather all metadata from an image 
+
 # 🕵️‍♂️ MetaGhost - Image Metadata Extractor
 
 ![banner](https://img.shields.io/badge/Made%20By-HackOps%20Academy-%23purple)  
