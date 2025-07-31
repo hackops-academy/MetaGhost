@@ -29,8 +29,7 @@
 ## 🚀 Installation & Usage (in Termux)
 
 ```bash
-pkg update && pkg upgrade
-pkg install unzip
-unzip MetaGhost.zip
+git clone https://github.com/hackops-academy/MetaGhost
+cd MetaGhost
 chmod +x MetaGhost.sh
 ./MetaGhost.sh
