@@ -44,6 +44,30 @@ extract_metadata() {
     echo -e "\e[1;96m[✔] Metadata saved to metadata_$image.txt\e[0m"
 }
 
+# Extract metadata using exiftool (Improved Version)
+extract_metadata() {
+    echo -e "\\e[1;94m[>] Enter path to image file:\\e[0m"
+    read image
+
+    if [ ! -f "$image" ]; then
+        echo -e "\\e[1;91m[!] File does not exist!\\e[0m"
+        exit 1
+    fi
+
+    mkdir -p MetaGhost/reports
+
+    # Extract just the filename (no path)
+    filename=$(basename "$image")
+    output="MetaGhost/reports/metadata_${filename}.txt"
+
+    echo -e "\\e[1;92m[✔] Extracting metadata...\\e[0m"
+    sleep 1
+    exiftool "$image" > "$output"
+    cat "$output"
+    echo
+    echo -e "\\e[1;96m[✔] Metadata saved to: $output\\e[0m"
+}
+
 # Main
 banner
 check_dependencies
