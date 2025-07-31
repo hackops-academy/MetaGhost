@@ -3,7 +3,7 @@
 # Banner Function
 banner() {
     clear
-    echo -e "\e[1;95m"
+    echo -e "\e[1;92m"
     echo "@@@@@@@@@@   @@@@@@@@  @@@@@@@   @@@@@@    @@@@@@@@  @@@  @@@   @@@@@@    @@@@@@   @@@@@@@"
     echo "@@@@@@@@@@@  @@@@@@@@  @@@@@@@  @@@@@@@@  @@@@@@@@@  @@@  @@@  @@@@@@@@  @@@@@@@   @@@@@@@"
     echo "@@! @@! @@!  @@!         @@!    @@!  @@@  !@@        @@!  @@@  @@!  @@@  !@@         @@!   "
@@ -15,66 +15,81 @@ banner() {
     echo ":::     ::    :: ::::     ::    ::   :::   ::: ::::  ::   :::  ::::: ::  :::: ::      ::  "
     echo " :      :    : :: ::      :      :   : :   :: :: :    :   : :   : :  :   :: : :       :   "
     echo -e "\e[0m"
-    echo -e "\e[1;93m[~] MetaGhost | Made by HackOps Academy | @_hack_ops_\e[0m"
+    echo -e "\e[1;93m[~] MetaGhost v2.0 | Made by HackOps Academy | @_hack_ops_\e[0m"
     echo
+}
+
+# Menu Function
+menu() {
+    echo -e "\e[1;96mChoose an option:\e[0m"
+    echo "  [1] Extract Metadata"
+    echo "  [2] Remove Metadata"
+    echo "  [3] Exit"
+    echo -n -e "\n>> "
+    read choice
+    case $choice in
+        1) extract_metadata ;;
+        2) remove_metadata ;;
+        3) echo -e "\e[1;91m[!] Exiting MetaGhost. Stay anonymous...\e[0m"; exit 0 ;;
+        *) echo -e "\e[1;91m[!] Invalid choice. Try again.\e[0m"; sleep 1; clear; banner; menu ;;
+    esac
 }
 
 # Check dependencies
 check_dependencies() {
     if ! command -v exiftool &> /dev/null; then
-        echo "[!] some tools not found. Installing..."
-        pkg update && pkg install exiftool -y
+        echo "[!] Installing Important tool..."
+        pkg update -y && pkg install exiftool -y
     fi
-}
-
-# Extract metadata using exiftool
-extract_metadata() {
-    echo -e "\e[1;94m[>] Enter path to image file:\e[0m"
-    read image
-    if [ ! -f "$image" ]; then
-        echo -e "\e[1;91m[!] File does not exist!\e[0m"
-        exit 1
-    fi
-
-    echo -e "\e[1;92m[✔] Extracting metadata...\e[0m"
-    sleep 1
-    exiftool "$image" > "metadata_$image.txt"
-    cat "metadata_$image.txt"
-    echo
-    echo -e "\e[1;96m[✔] Metadata saved to metadata_$image.txt\e[0m"
 }
 
 # Extract metadata using exiftool (Improved Version)
 extract_metadata() {
-    echo -e "\\e[1;94m[>] Enter path to image file:\\e[0m"
+    echo -e "\n\e[1;94m[>] Enter path to image file to extract metadata:\e[0m"
     read image
 
     if [ ! -f "$image" ]; then
-        echo -e "\\e[1;91m[!] File does not exist!\\e[0m"
-        exit 1
+        echo -e "\e[1;91m[!] File not found!\e[0m"
+        return
     fi
 
-    mkdir -p MetaGhost/reports
+    mkdir -p reports
 
-    # Extract just the filename (no path)
     filename=$(basename "$image")
-    output="MetaGhost/reports/metadata_${filename}.txt"
+    output="reports/metadata_${filename}.txt"
 
-    echo -e "\\e[1;92m[✔] Extracting metadata...\\e[0m"
+    echo -e "\e[1;92m[✔] Extracting metadata from: $filename\e[0m"
     sleep 1
     exiftool "$image" > "$output"
     cat "$output"
     echo
-    echo -e "\\e[1;96m[✔] Metadata saved to: $output\\e[0m"
+    echo -e "\e[1;96m[✔] Metadata saved to: $output\e[0m"
 }
 
-# Main
+# Remove metadata using exiftool
+remove_metadata() {
+    echo -e "\n\e[1;94m[>] Enter path to image file to REMOVE metadata:\e[0m"
+    read image
+
+    if [ ! -f "$image" ]; then
+        echo -e "\e[1;91m[!] File not found!\e[0m"
+        return
+    fi
+
+    mkdir -p clean_images
+    filename=$(basename "$image")
+    output="clean_images/cleaned_${filename}"
+
+    echo -e "\e[1;93m[!] Removing metadata...\e[0m"
+    sleep 1
+    exiftool -all= -o "$output" "$image"
+    echo -e "\e[1;92m[✔] Metadata removed. Clean image saved as: $output\e[0m"
+}
+
+# Start Script
+clear
 banner
 check_dependencies
-extract_metadata
-
-# Outro
-echo
-echo -e "\e[1;92m[✔] Scan complete. All traces extracted.\e[0m"
-echo -e "\e[1;91m[💀] Mission MetaGhost complete. Digital footprint indexed.\e[0m"
-echo -e "\e[1;95m[📁] Report saved. Time to vanish...\e[0m"
+while true; do
+    menu
+done
