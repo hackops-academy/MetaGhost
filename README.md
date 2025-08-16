@@ -1,6 +1,11 @@
 # 🕵️‍♂️ MetaGhost - Metadata Recon & Remover Tool
 
 ![banner](https://img.shields.io/badge/Made%20By-HackOps%20Academy-%23purple)  
+![Shell](https://img.shields.io/badge/Made%20with-Bash-blue)
+![Status](https://img.shields.io/badge/Status-Active-success)
+![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen)
+
+
 **MetaGhost**  is a Termux-based image forensics tool developed by **HackOps Academy**. It allows you to **extract** hidden metadata from image files (EXIF) and **clean** them to protect user privacy.
 
 ---
