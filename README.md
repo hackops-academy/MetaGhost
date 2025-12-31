@@ -70,6 +70,20 @@ termux-open image_report.html
    • What it does: Removes             metadata from every image in      a specific folder.
    • Output: All clean images are      saved in                          clean_output/bulk_clean/.
 
+---
+## Image Location if Using Android:-
+
+**Downloads folder:** /sdcard/Download/filename.jpg
+
+**Camera folder (DCIM):** /sdcard/DCIM/Camera/filename.jpg
+
+**WhatsApp Images:** /sdcard/Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/filename.jpg
+
+**Note:** If you haven't given Termux permission to access your storage yet, run this command first:
+```bash
+termux-setup-storage (and click "Allow" on the popup
+```
+
 ## 📂 File Management (Termux Users)
 Since Termux uses a private file system, here is how to move your cleaned images to your phone's Gallery/Downloads.
 ### To move a cleaned image to Internal Storage:###
