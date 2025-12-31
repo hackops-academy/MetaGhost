@@ -90,7 +90,7 @@ cat filename_report.html
 # OR if you have 'bat' installed
 bat filename_report.html
 ```
-## ⚠️ Disclaimer## 
+## ⚠️ Disclaimer
 This tool is designed for educational purposes, digital forensics, and privacy protection. HackOps Academy is not responsible for any misuse of this tool. Always ensure you have permission before analyzing files that do not belong to you.
 <p align="center">
 Made with ❤️ by HackOps Academy
