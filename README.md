@@ -1,4 +1,6 @@
-
+<p align="center">
+  <img src="assets/metaghost_banner.png" alt="MetaGhost - image steagnography tool, made by HackOps Academy" width="100%">
+</p>
 # 🕵️‍♂️ MetaGhost v3.0 - Advanced Forensics & Anonymization
 
 ![banner](https://img.shields.io/badge/Made%20By-HackOps%20Academy-%23purple)
