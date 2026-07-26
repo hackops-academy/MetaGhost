@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/metaghost-logo.svg" alt="MetaGhost" width="140">
+  <img src="assets/metaghost_banner.png" alt="MetaGhost" width="100%">
 </p>
 
 # 👻 MetaGhost v4.0 — Advanced Forensics & Anonymization Console
@@ -20,6 +20,10 @@ the real work, and an Electron shell providing a native desktop window and
 file-system dialogs around it.
 
 ---
+
+<p align="center">
+  <img src="assets/metaghost-logo.svg" alt="MetaGhost" width="200">
+</p>
 
 ## ⚡ What's new in v4.0 (GUI Edition)
 
