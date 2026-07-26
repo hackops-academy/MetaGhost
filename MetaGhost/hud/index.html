@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MetaGhost // Forensics Console</title>
+<style>
+  :root{
+    --void:#080a14; --panel:#0d1120; --panel-2:#121729; --line:#1e2740;
+    --cyan:#38bdf8; --cyan-dim:#1c4a63; --blue:#4facfe; --purple:#7c6bf0;
+    --crimson:#ff4d6d; --amber:#e6b45c; --lime:#7fd88f; --grey:#5b6577;
+    --text:#c9d4e3; --text-dim:#7b8699; --text-bright:#e8eef7;
+    --mono:'JetBrains Mono','Share Tech Mono',ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 20% -10%, rgba(124,107,240,0.10), transparent 60%),
+      radial-gradient(ellipse 900px 500px at 90% 0%, rgba(56,189,248,0.08), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(56,189,248,0.012) 0px, rgba(56,189,248,0.012) 1px, transparent 1px, transparent 3px),
+      var(--void);
+    color:var(--text); font-family:var(--mono); font-size:13px;
+    min-height:100vh; display:flex; flex-direction:column;
+  }
+  ::selection{background:var(--cyan-dim); color:#fff;}
+  ::-webkit-scrollbar{width:10px; height:10px;}
+  ::-webkit-scrollbar-track{background:var(--panel);}
+  ::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--cyan-dim);}
+
+  /* ---------- Topbar ---------- */
+  #topbar{
+    display:flex; align-items:center; gap:16px; padding:10px 20px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    flex-shrink:0; flex-wrap:wrap;
+  }
+  #brand{display:flex; align-items:center; gap:10px;}
+  #brand img{width:30px; height:30px; filter:drop-shadow(0 0 6px rgba(56,189,248,0.5));}
+  #brand .name{letter-spacing:3px; font-weight:700; color:var(--text-bright); font-size:15px;}
+  #brand .dot{width:8px; height:8px; border-radius:50%; background:var(--grey); box-shadow:0 0 8px var(--grey); transition:all .3s;}
+  #brand .dot.live{background:var(--lime); box-shadow:0 0 10px var(--lime); animation:pulse 2s infinite;}
+  #brand .dot.bad{background:var(--crimson); box-shadow:0 0 10px var(--crimson);}
+  #brand .credit{font-weight:400; letter-spacing:1px; font-size:10px; color:var(--text-dim); margin-left:2px;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.45;}}
+
+  #statusbar{margin-left:auto; display:flex; align-items:center; gap:14px; font-size:11px; color:var(--text-dim);}
+  #statusbar .chip{
+    border:1px solid var(--line); border-radius:12px; padding:3px 10px;
+    display:flex; align-items:center; gap:6px;
+  }
+  #statusbar .chip.ok{border-color:var(--cyan-dim); color:var(--cyan);}
+  #statusbar .chip.err{border-color:#5c2733; color:var(--crimson);}
+
+  button{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    font-family:var(--mono); font-size:12px; padding:7px 14px; border-radius:3px;
+    cursor:pointer; letter-spacing:0.5px; transition:all .15s;
+  }
+  button:hover{border-color:var(--cyan); color:var(--cyan); transform:translateY(-1px);}
+  button:active{transform:translateY(0);}
+  button.primary{border-color:var(--cyan-dim); color:var(--cyan); background:rgba(56,189,248,0.06);}
+  button.primary:hover{background:var(--cyan-dim); color:#fff;}
+  button.danger{border-color:#5c2733; color:var(--crimson);}
+  button.danger:hover{background:#5c2733; color:#fff;}
+  button.ghost{background:transparent; border-color:transparent; color:var(--text-dim);}
+  button.ghost:hover{color:var(--cyan); border-color:var(--line);}
+  button:disabled{opacity:0.35; cursor:not-allowed; transform:none;}
+  button.small{padding:4px 10px; font-size:11px;}
+
+  /* ---------- Layout ---------- */
+  #main{display:flex; flex:1; min-height:0;}
+  #sidebar{width:230px; flex-shrink:0; border-right:1px solid var(--line); background:var(--panel); padding:16px 10px; display:flex; flex-direction:column; gap:2px;}
+  .navitem{
+    display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:4px;
+    cursor:pointer; font-size:12px; letter-spacing:1px; color:var(--text-dim);
+    border-left:2px solid transparent; transition:all .15s;
+  }
+  .navitem .ic{width:16px; text-align:center; opacity:0.85;}
+  .navitem:hover{background:var(--panel-2); color:var(--text);}
+  .navitem.active{border-left-color:var(--cyan); color:var(--cyan); background:var(--panel-2);}
+  .navsep{height:1px; background:var(--line); margin:12px 4px;}
+  .navlabel{font-size:10px; letter-spacing:2px; color:var(--text-dim); padding:6px 12px 2px;}
+
+  #sidebar .sidefoot{margin-top:auto; padding:10px 12px; font-size:10px; color:var(--text-dim); line-height:1.6;}
+
+  #content{flex:1; min-width:0; overflow-y:auto; padding:24px 28px;}
+  .pane{display:none;}
+  .pane.active{display:block; animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+  h1.pagetitle{font-size:16px; letter-spacing:2px; color:var(--text-bright); margin-bottom:4px;}
+  p.pagesub{font-size:12px; color:var(--text-dim); margin-bottom:20px;}
+
+  .hud-box{border:1px solid var(--line); background:var(--panel); border-radius:4px; padding:18px; margin-bottom:18px; position:relative;}
+  .hud-box::before, .hud-box::after{content:''; position:absolute; width:10px; height:10px; border-color:var(--cyan-dim); opacity:0.7;}
+  .hud-box::before{top:-1px; left:-1px; border-top:1px solid; border-left:1px solid;}
+  .hud-box::after{bottom:-1px; right:-1px; border-bottom:1px solid; border-right:1px solid;}
+  .hud-box h4{font-size:11px; letter-spacing:2px; color:var(--text-dim); margin-bottom:14px; text-transform:uppercase;}
+
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .row + .row{margin-top:10px;}
+  input[type=text]{
+    background:var(--void); border:1px solid var(--line); color:var(--text);
+    font-family:var(--mono); font-size:12px; padding:9px 11px; border-radius:3px; outline:none; flex:1; min-width:240px;
+  }
+  input:focus{border-color:var(--cyan);}
+  input[readonly]{color:var(--text-dim);}
+
+  /* ---------- Dashboard cards ---------- */
+  .cardgrid{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:14px; margin-bottom:20px;}
+  .statcard{background:var(--panel); border:1px solid var(--line); border-radius:5px; padding:16px;}
+  .statcard .n{font-size:26px; font-weight:700; color:var(--text-bright);}
+  .statcard .l{font-size:10px; letter-spacing:1.5px; color:var(--text-dim); margin-top:4px; text-transform:uppercase;}
+  .statcard.critical .n{color:var(--crimson);}
+  .statcard.high .n{color:var(--amber);}
+  .statcard.cyan .n{color:var(--cyan);}
+  .statcard.lime .n{color:var(--lime);}
+
+  .quickgrid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:14px;}
+  .quickcard{
+    background:var(--panel); border:1px solid var(--line); border-radius:5px; padding:18px;
+    cursor:pointer; transition:all .15s;
+  }
+  .quickcard:hover{border-color:var(--cyan); transform:translateY(-2px); box-shadow:0 6px 18px rgba(56,189,248,0.08);}
+  .quickcard .ic{font-size:22px; margin-bottom:10px;}
+  .quickcard .t{font-size:12px; letter-spacing:1px; color:var(--text-bright); margin-bottom:4px;}
+  .quickcard .d{font-size:11px; color:var(--text-dim); line-height:1.5;}
+
+  /* ---------- Tables ---------- */
+  table{width:100%; border-collapse:collapse; font-size:12px;}
+  th{text-align:left; color:var(--text-dim); font-size:10px; letter-spacing:1.5px; padding:9px 10px; border-bottom:1px solid var(--line); text-transform:uppercase;}
+  td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:hover td{background:rgba(56,189,248,0.04);}
+  .badge{border:1px solid; border-radius:10px; padding:1px 9px; font-size:10px; font-weight:700; letter-spacing:0.5px; white-space:nowrap;}
+  .badge.critical{color:var(--crimson); border-color:var(--crimson);}
+  .badge.high{color:var(--amber); border-color:var(--amber);}
+  .badge.medium{color:var(--blue); border-color:var(--blue);}
+  .badge.low{color:var(--lime); border-color:var(--lime);}
+  .badge.none{color:var(--grey); border-color:var(--grey);}
+  .badge.cleaned{color:var(--lime); border-color:var(--lime);}
+
+  .tagval{max-width:420px; word-break:break-word; color:var(--text);}
+  .tagname{color:var(--text-bright); font-weight:600;}
+  .grpname{color:var(--text-dim);}
+
+  /* ---------- Misc ---------- */
+  .empty{color:var(--text-dim); font-size:12px; padding:20px; text-align:center;}
+  .spin{display:inline-block; width:12px; height:12px; border:2px solid var(--line); border-top-color:var(--cyan); border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:6px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .msg{font-size:12px; padding:10px 12px; border-radius:4px; margin-top:12px; border:1px solid;}
+  .msg.err{border-color:#5c2733; color:var(--crimson); background:rgba(255,77,109,0.06);}
+  .msg.ok{border-color:var(--cyan-dim); color:var(--cyan); background:rgba(56,189,248,0.06);}
+  .filepick{display:flex; gap:8px; flex:1; min-width:280px;}
+  .overall-banner{
+    border:1px solid var(--line); border-radius:5px; padding:18px 20px; margin-bottom:18px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  }
+  .overall-banner .lvl{font-size:22px; font-weight:800; letter-spacing:1px;}
+  .overall-banner .meta{font-size:11px; color:var(--text-dim);}
+  .progress-track{height:6px; background:var(--panel-2); border-radius:3px; overflow:hidden; margin-top:10px;}
+  .progress-fill{height:100%; background:linear-gradient(90deg, var(--cyan), var(--purple)); width:0%; transition:width .3s;}
+  code.path{color:var(--cyan); font-size:11px; word-break:break-all;}
+  .maplink{color:var(--cyan); text-decoration:none; border-bottom:1px dashed var(--cyan-dim);}
+  .maplink:hover{color:#fff;}
+  .bulkresult-row.fail td{color:var(--crimson);}
+  .footer-credit{font-size:10px; color:var(--text-dim); text-align:center; padding:16px; border-top:1px solid var(--line);}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div id="brand">
+    <img src="logo.svg" alt="MetaGhost">
+    <span class="name">METAGHOST</span>
+    <span class="dot" id="conndot"></span>
+    <span class="credit">v4.0 :: HackOps Academy</span>
+  </div>
+  <div id="statusbar">
+    <div class="chip" id="exiftoolchip">exiftool: checking…</div>
+    <button class="ghost small" id="refreshBtn">↻ refresh</button>
+  </div>
+</div>
+
+<div id="main">
+  <div id="sidebar">
+    <div class="navlabel">OPERATIONS</div>
+    <div class="navitem active" data-pane="dashboard"><span class="ic">◈</span> Dashboard</div>
+    <div class="navitem" data-pane="analyze"><span class="ic">◎</span> Deep Analysis</div>
+    <div class="navitem" data-pane="gps"><span class="ic">⌖</span> GPS Forensics</div>
+    <div class="navitem" data-pane="scrub"><span class="ic">✦</span> Secure Scrub</div>
+    <div class="navitem" data-pane="bulk"><span class="ic">▦</span> Bulk Scrub</div>
+    <div class="navsep"></div>
+    <div class="navlabel">RECORDS</div>
+    <div class="navitem" data-pane="reports"><span class="ic">▤</span> Reports</div>
+    <div class="navitem" data-pane="history"><span class="ic">◷</span> History</div>
+    <div class="sidefoot">
+      100% offline analysis.<br>No data leaves this device.
+    </div>
+  </div>
+
+  <div id="content">
+
+    <!-- ================= DASHBOARD ================= -->
+    <div class="pane active" id="pane-dashboard">
+      <h1 class="pagetitle">DASHBOARD</h1>
+      <p class="pagesub">Forensic metadata engine — overview of recent activity on this device.</p>
+
+      <div class="cardgrid" id="dashCards">
+        <div class="statcard cyan"><div class="n" id="statTotal">0</div><div class="l">Operations Logged</div></div>
+        <div class="statcard critical"><div class="n" id="statCritical">0</div><div class="l">Critical Findings</div></div>
+        <div class="statcard high"><div class="n" id="statHigh">0</div><div class="l">High Risk Findings</div></div>
+        <div class="statcard lime"><div class="n" id="statCleaned">0</div><div class="l">Files Cleaned</div></div>
+      </div>
+
+      <div class="hud-box">
+        <h4>Quick Actions</h4>
+        <div class="quickgrid">
+          <div class="quickcard" data-goto="analyze">
+            <div class="ic">◎</div>
+            <div class="t">DEEP ANALYSIS</div>
+            <div class="d">Scan a file for hidden metadata, get a risk-scored HTML report.</div>
+          </div>
+          <div class="quickcard" data-goto="gps">
+            <div class="ic">⌖</div>
+            <div class="t">GPS FORENSICS</div>
+            <div class="d">Extract exact capture coordinates and pin them on a map.</div>
+          </div>
+          <div class="quickcard" data-goto="scrub">
+            <div class="ic">✦</div>
+            <div class="t">SECURE SCRUB</div>
+            <div class="d">Strip all metadata from one file, with an automatic backup.</div>
+          </div>
+          <div class="quickcard" data-goto="bulk">
+            <div class="ic">▦</div>
+            <div class="t">BULK SCRUB</div>
+            <div class="d">Sanitize every file in a folder before you share or publish it.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-box">
+        <h4>Recent Activity</h4>
+        <div id="dashHistory"><div class="empty">No operations yet. Run an analysis to get started.</div></div>
+      </div>
+    </div>
+
+    <!-- ================= DEEP ANALYSIS ================= -->
+    <div class="pane" id="pane-analyze">
+      <h1 class="pagetitle">DEEP ANALYSIS</h1>
+      <p class="pagesub">Full metadata extraction with automatic privacy risk classification.</p>
+
+      <div class="hud-box">
+        <h4>Target File</h4>
+        <div class="row">
+          <div class="filepick">
+            <input type="text" id="analyzePath" placeholder="No file selected…" readonly>
+            <button id="analyzeBrowse">Browse…</button>
+          </div>
+          <button class="primary" id="analyzeRun">▶ Run Analysis</button>
+        </div>
+        <div id="analyzeMsg"></div>
+      </div>
+
+      <div id="analyzeResults"></div>
+    </div>
+
+    <!-- ================= GPS FORENSICS ================= -->
+    <div class="pane" id="pane-gps">
+      <h1 class="pagetitle">GPS FORENSICS</h1>
+      <p class="pagesub">Locate the exact coordinates where an image or video was captured.</p>
+
+      <div class="hud-box">
+        <h4>Target File</h4>
+        <div class="row">
+          <div class="filepick">
+            <input type="text" id="gpsPath" placeholder="No file selected…" readonly>
+            <button id="gpsBrowse">Browse…</button>
+          </div>
+          <button class="primary" id="gpsRun">▶ Locate</button>
+        </div>
+        <div id="gpsMsg"></div>
+      </div>
+
+      <div id="gpsResults"></div>
+    </div>
+
+    <!-- ================= SECURE SCRUB ================= -->
+    <div class="pane" id="pane-scrub">
+      <h1 class="pagetitle">SECURE SCRUB</h1>
+      <p class="pagesub">Remove all metadata from a single file. The original is always backed up first.</p>
+
+      <div class="hud-box">
+        <h4>Target File</h4>
+        <div class="row">
+          <div class="filepick">
+            <input type="text" id="scrubPath" placeholder="No file selected…" readonly>
+            <button id="scrubBrowse">Browse…</button>
+          </div>
+          <button class="primary" id="scrubRun">▶ Scrub File</button>
+        </div>
+        <div id="scrubMsg"></div>
+      </div>
+
+      <div id="scrubResults"></div>
+    </div>
+
+    <!-- ================= BULK SCRUB ================= -->
+    <div class="pane" id="pane-bulk">
+      <h1 class="pagetitle">BULK SCRUB</h1>
+      <p class="pagesub">Sanitize every file in a folder in one pass — ideal before a mass upload.</p>
+
+      <div class="hud-box">
+        <h4>Target Directory</h4>
+        <div class="row">
+          <div class="filepick">
+            <input type="text" id="bulkPath" placeholder="No directory selected…" readonly>
+            <button id="bulkBrowse">Browse…</button>
+          </div>
+          <button class="primary" id="bulkRun">▶ Scrub Directory</button>
+        </div>
+        <div id="bulkMsg"></div>
+      </div>
+
+      <div id="bulkResults"></div>
+    </div>
+
+    <!-- ================= REPORTS ================= -->
+    <div class="pane" id="pane-reports">
+      <h1 class="pagetitle">REPORTS</h1>
+      <p class="pagesub">Every HTML forensic report generated by Deep Analysis, in one place.</p>
+      <div class="hud-box">
+        <div class="row" style="margin-bottom:10px;">
+          <button class="ghost small" id="reportsRefresh">↻ refresh</button>
+        </div>
+        <div id="reportsTable"><div class="empty">No reports generated yet.</div></div>
+      </div>
+    </div>
+
+    <!-- ================= HISTORY ================= -->
+    <div class="pane" id="pane-history">
+      <h1 class="pagetitle">OPERATION HISTORY</h1>
+      <p class="pagesub">Full local log of every analysis, GPS lookup, and scrub performed.</p>
+      <div class="hud-box">
+        <div class="row" style="margin-bottom:10px;">
+          <button class="ghost small" id="historyRefresh">↻ refresh</button>
+          <button class="danger small" id="historyClear">Clear History</button>
+        </div>
+        <div id="historyTable"><div class="empty">No history yet.</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer-credit">MetaGhost v4.0 &middot; Advanced Metadata Forensics &amp; Anonymization &middot; HackOps Academy &middot; 100% offline</div>
+
+<script>
+const API_BASE = 'http://127.0.0.1:8077';
+
+async function api(apiPath, opts) {
+  return window.metaghostBridge.request(API_BASE, apiPath, opts || {});
+}
+
+// ---------- Navigation ----------
+const navitems = document.querySelectorAll('.navitem');
+const panes = document.querySelectorAll('.pane');
+function goTo(name) {
+  navitems.forEach(n => n.classList.toggle('active', n.dataset.pane === name));
+  panes.forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+  if (name === 'reports') loadReports();
+  if (name === 'history') loadHistory();
+  if (name === 'dashboard') loadDashboard();
+}
+navitems.forEach(n => n.addEventListener('click', () => goTo(n.dataset.pane)));
+document.querySelectorAll('.quickcard').forEach(c => c.addEventListener('click', () => goTo(c.dataset.goto)));
+
+// ---------- Status ----------
+async function checkStatus() {
+  const dot = document.getElementById('conndot');
+  const chip = document.getElementById('exiftoolchip');
+  const res = await api('/api/status');
+  if (res.ok) {
+    dot.className = 'dot live';
+    const d = res.data;
+    if (d.exiftool_installed) {
+      chip.className = 'chip ok';
+      chip.textContent = 'exiftool ' + (d.exiftool_version || '') + ' ready';
+    } else {
+      chip.className = 'chip err';
+      chip.textContent = 'exiftool NOT FOUND';
+    }
+  } else {
+    dot.className = 'dot bad';
+    chip.className = 'chip err';
+    chip.textContent = 'API offline';
+  }
+}
+document.getElementById('refreshBtn').addEventListener('click', checkStatus);
+
+// ---------- Helpers ----------
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+  return (n/1024/1024).toFixed(1) + ' MB';
+}
+function levelBadge(level) {
+  const lbl = {critical:'CRITICAL', high:'HIGH', medium:'MEDIUM', low:'LOW', none:'CLEAN', cleaned:'CLEANED'}[level] || level.toUpperCase();
+  return `<span class="badge ${level}">${lbl}</span>`;
+}
+function opLabel(op) {
+  return {analyze:'Deep Analysis', gps:'GPS Lookup', scrub:'Secure Scrub', bulk_scrub:'Bulk Scrub'}[op] || op;
+}
+
+// ---------- Deep Analysis ----------
+document.getElementById('analyzeBrowse').addEventListener('click', async () => {
+  const r = await window.metaghostBridge.pickFile('Select a file to analyze');
+  if (r.ok) document.getElementById('analyzePath').value = r.path;
+});
+
+document.getElementById('analyzeRun').addEventListener('click', async () => {
+  const path = document.getElementById('analyzePath').value.trim();
+  const msg = document.getElementById('analyzeMsg');
+  const out = document.getElementById('analyzeResults');
+  if (!path) { msg.innerHTML = '<div class="msg err">Select a file first.</div>'; return; }
+  msg.innerHTML = '<div class="msg ok"><span class="spin"></span>Analyzing metadata…</div>';
+  out.innerHTML = '';
+  const res = await api('/api/analyze', { method: 'POST', body: { path } });
+  if (!res.ok) { msg.innerHTML = `<div class="msg err">${esc(res.error)}</div>`; return; }
+  msg.innerHTML = '';
+  renderAnalysis(res.data, out);
+  loadDashboard();
+});
+
+function renderAnalysis(data, out) {
+  const colorMap = {critical:'var(--crimson)', high:'var(--amber)', medium:'var(--blue)', low:'var(--lime)', none:'var(--grey)'};
+  const rows = data.tags.map(t => `
+    <tr>
+      <td class="grpname">${esc(t.group)}</td>
+      <td class="tagname">${esc(t.tag)}</td>
+      <td class="tagval">${esc(t.value)}</td>
+      <td>${t.level !== 'none' ? levelBadge(t.level) : ''}</td>
+    </tr>`).join('');
+
+  out.innerHTML = `
+    <div class="overall-banner" style="border-color:${colorMap[data.risk_level]}">
+      <div>
+        <div class="lvl" style="color:${colorMap[data.risk_level]}">${data.risk_label} RISK</div>
+        <div class="meta">${data.tag_count} tags read &middot; exposure score ${data.risk_score}</div>
+      </div>
+      <div class="row">
+        <button class="ghost small" id="openReportBtn">Open HTML Report ↗</button>
+        <button class="ghost small" id="revealReportBtn">Reveal in Folder</button>
+      </div>
+    </div>
+    <div class="cardgrid">
+      <div class="statcard critical"><div class="n">${data.risk_counts.critical}</div><div class="l">Critical</div></div>
+      <div class="statcard high"><div class="n">${data.risk_counts.high}</div><div class="l">High</div></div>
+      <div class="statcard cyan"><div class="n">${data.risk_counts.medium}</div><div class="l">Medium</div></div>
+      <div class="statcard lime"><div class="n">${data.risk_counts.low}</div><div class="l">Low</div></div>
+    </div>
+    <div class="hud-box">
+      <h4>Extracted Tags</h4>
+      <table>
+        <tr><th>Group</th><th>Tag</th><th>Value</th><th>Risk</th></tr>
+        ${rows}
+      </table>
+    </div>
+  `;
+  document.getElementById('openReportBtn').addEventListener('click', () => {
+    window.metaghostBridge.openExternal('file://' + data.report_path);
+  });
+  document.getElementById('revealReportBtn').addEventListener('click', () => {
+    window.metaghostBridge.revealInFolder(data.report_path);
+  });
+}
+
+// ---------- GPS Forensics ----------
+document.getElementById('gpsBrowse').addEventListener('click', async () => {
+  const r = await window.metaghostBridge.pickFile('Select a file for GPS extraction');
+  if (r.ok) document.getElementById('gpsPath').value = r.path;
+});
+
+document.getElementById('gpsRun').addEventListener('click', async () => {
+  const path = document.getElementById('gpsPath').value.trim();
+  const msg = document.getElementById('gpsMsg');
+  const out = document.getElementById('gpsResults');
+  if (!path) { msg.innerHTML = '<div class="msg err">Select a file first.</div>'; return; }
+  msg.innerHTML = '<div class="msg ok"><span class="spin"></span>Triangulating coordinates…</div>';
+  out.innerHTML = '';
+  const res = await api('/api/gps', { method: 'POST', body: { path } });
+  if (!res.ok) { msg.innerHTML = `<div class="msg err">${esc(res.error)}</div>`; return; }
+  msg.innerHTML = '';
+  const d = res.data;
+  if (!d.found) {
+    out.innerHTML = `<div class="msg err">No GPS data found in <code class="path">${esc(d.filename)}</code>.</div>`;
+    return;
+  }
+  out.innerHTML = `
+    <div class="overall-banner" style="border-color:var(--crimson)">
+      <div>
+        <div class="lvl" style="color:var(--crimson)">GPS DATA FOUND</div>
+        <div class="meta">${esc(d.filename)}</div>
+      </div>
+      <a class="maplink" href="#" id="mapLinkBtn">Open in Google Maps ↗</a>
+    </div>
+    <div class="hud-box">
+      <h4>Coordinates</h4>
+      <table>
+        <tr><td class="tagname">Latitude</td><td>${d.latitude}</td></tr>
+        <tr><td class="tagname">Longitude</td><td>${d.longitude}</td></tr>
+        <tr><td class="tagname">Altitude</td><td>${d.altitude ?? '—'}</td></tr>
+        <tr><td class="tagname">Direction</td><td>${d.direction ?? '—'}</td></tr>
+        <tr><td class="tagname">Capture Timestamp</td><td>${d.datetime ?? '—'}</td></tr>
+        <tr><td class="tagname">Speed</td><td>${d.speed ?? '—'}</td></tr>
+        <tr><td class="tagname">Map Link</td><td><code class="path">${esc(d.map_link)}</code></td></tr>
+      </table>
+    </div>
+  `;
+  document.getElementById('mapLinkBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    window.metaghostBridge.openExternal(d.map_link);
+  });
+});
+
+// ---------- Secure Scrub ----------
+document.getElementById('scrubBrowse').addEventListener('click', async () => {
+  const r = await window.metaghostBridge.pickFile('Select a file to scrub');
+  if (r.ok) document.getElementById('scrubPath').value = r.path;
+});
+
+document.getElementById('scrubRun').addEventListener('click', async () => {
+  const path = document.getElementById('scrubPath').value.trim();
+  const msg = document.getElementById('scrubMsg');
+  const out = document.getElementById('scrubResults');
+  if (!path) { msg.innerHTML = '<div class="msg err">Select a file first.</div>'; return; }
+  msg.innerHTML = '<div class="msg ok"><span class="spin"></span>Backing up and scrubbing…</div>';
+  out.innerHTML = '';
+  const res = await api('/api/scrub', { method: 'POST', body: { path } });
+  if (!res.ok) { msg.innerHTML = `<div class="msg err">${esc(res.error)}</div>`; return; }
+  msg.innerHTML = '';
+  const d = res.data;
+  out.innerHTML = `
+    <div class="overall-banner" style="border-color:var(--lime)">
+      <div>
+        <div class="lvl" style="color:var(--lime)">FILE CLEANED</div>
+        <div class="meta">All metadata stripped from ${esc(d.filename)}</div>
+      </div>
+      <div class="row">
+        <button class="ghost small" id="revealCleanBtn">Reveal Clean File</button>
+        <button class="ghost small" id="revealBackupBtn">Reveal Backup</button>
+      </div>
+    </div>
+    <div class="hud-box">
+      <h4>Output Paths</h4>
+      <table>
+        <tr><td class="tagname">Clean File</td><td><code class="path">${esc(d.output_path)}</code></td></tr>
+        <tr><td class="tagname">Backup (original)</td><td><code class="path">${esc(d.backup_path)}</code></td></tr>
+      </table>
+    </div>
+  `;
+  document.getElementById('revealCleanBtn').addEventListener('click', () => window.metaghostBridge.revealInFolder(d.output_path));
+  document.getElementById('revealBackupBtn').addEventListener('click', () => window.metaghostBridge.revealInFolder(d.backup_path));
+  loadDashboard();
+});
+
+// ---------- Bulk Scrub ----------
+document.getElementById('bulkBrowse').addEventListener('click', async () => {
+  const r = await window.metaghostBridge.pickDirectory('Select a directory to scrub');
+  if (r.ok) document.getElementById('bulkPath').value = r.path;
+});
+
+document.getElementById('bulkRun').addEventListener('click', async () => {
+  const dirpath = document.getElementById('bulkPath').value.trim();
+  const msg = document.getElementById('bulkMsg');
+  const out = document.getElementById('bulkResults');
+  if (!dirpath) { msg.innerHTML = '<div class="msg err">Select a directory first.</div>'; return; }
+  msg.innerHTML = '<div class="msg ok"><span class="spin"></span>Sanitizing directory…</div>';
+  out.innerHTML = '';
+  const res = await api('/api/bulk', { method: 'POST', body: { directory: dirpath } });
+  if (!res.ok) { msg.innerHTML = `<div class="msg err">${esc(res.error)}</div>`; return; }
+  msg.innerHTML = '';
+  const d = res.data;
+  const rows = d.results.map(r => `
+    <tr class="${r.ok ? '' : 'bulkresult-row fail'}">
+      <td>${esc(r.filename)}</td>
+      <td>${r.ok ? levelBadge('cleaned') : '<span class="badge critical">FAILED</span>'}</td>
+      <td>${r.error ? esc(r.error) : ''}</td>
+    </tr>`).join('');
+  out.innerHTML = `
+    <div class="overall-banner" style="border-color:var(--cyan)">
+      <div>
+        <div class="lvl" style="color:var(--cyan)">${d.cleaned}/${d.total} FILES CLEANED</div>
+        <div class="meta">Output folder: <code class="path">${esc(d.output_dir)}</code></div>
+      </div>
+      <button class="ghost small" id="revealBulkBtn">Open Output Folder</button>
+    </div>
+    <div class="hud-box">
+      <h4>Per-File Results</h4>
+      <table><tr><th>File</th><th>Status</th><th>Detail</th></tr>${rows}</table>
+    </div>
+  `;
+  document.getElementById('revealBulkBtn').addEventListener('click', () => window.metaghostBridge.revealInFolder(d.output_dir));
+  loadDashboard();
+});
+
+// ---------- Reports ----------
+async function loadReports() {
+  const box = document.getElementById('reportsTable');
+  const res = await api('/api/reports');
+  if (!res.ok || !res.data.length) { box.innerHTML = '<div class="empty">No reports generated yet.</div>'; return; }
+  const rows = res.data.map(r => `
+    <tr>
+      <td class="tagname">${esc(r.name)}</td>
+      <td>${fmtBytes(r.size)}</td>
+      <td>${esc(r.mtime.replace('T',' '))}</td>
+      <td>
+        <button class="ghost small" onclick="window.metaghostBridge.openExternal('file://${esc(r.path)}')">Open</button>
+        <button class="ghost small" onclick="window.metaghostBridge.revealInFolder('${esc(r.path)}')">Reveal</button>
+      </td>
+    </tr>`).join('');
+  box.innerHTML = `<table><tr><th>Report</th><th>Size</th><th>Generated</th><th></th></tr>${rows}</table>`;
+}
+document.getElementById('reportsRefresh').addEventListener('click', loadReports);
+
+// ---------- History ----------
+async function loadHistory() {
+  const box = document.getElementById('historyTable');
+  const res = await api('/api/history');
+  if (!res.ok || !res.data.length) { box.innerHTML = '<div class="empty">No history yet.</div>'; return; }
+  const rows = res.data.map(h => `
+    <tr>
+      <td>${esc(h.ts.replace('T',' '))}</td>
+      <td class="tagname">${opLabel(h.op)}</td>
+      <td>${esc(h.filename)}</td>
+      <td>${h.risk_level ? levelBadge(h.risk_level) : ''}</td>
+    </tr>`).join('');
+  box.innerHTML = `<table><tr><th>Time</th><th>Operation</th><th>Target</th><th>Result</th></tr>${rows}</table>`;
+}
+document.getElementById('historyRefresh').addEventListener('click', loadHistory);
+document.getElementById('historyClear').addEventListener('click', async () => {
+  await api('/api/history/clear', { method: 'POST' });
+  loadHistory();
+  loadDashboard();
+});
+
+// ---------- Dashboard ----------
+async function loadDashboard() {
+  const res = await api('/api/history');
+  const list = res.ok ? res.data : [];
+  document.getElementById('statTotal').textContent = list.length;
+  document.getElementById('statCritical').textContent = list.filter(h => h.risk_level === 'critical').length;
+  document.getElementById('statHigh').textContent = list.filter(h => h.risk_level === 'high').length;
+  document.getElementById('statCleaned').textContent = list.filter(h => h.op === 'scrub' || h.op === 'bulk_scrub').length;
+
+  const box = document.getElementById('dashHistory');
+  if (!list.length) { box.innerHTML = '<div class="empty">No operations yet. Run an analysis to get started.</div>'; return; }
+  const rows = list.slice(0, 8).map(h => `
+    <tr>
+      <td>${esc(h.ts.replace('T',' '))}</td>
+      <td class="tagname">${opLabel(h.op)}</td>
+      <td>${esc(h.filename)}</td>
+      <td>${h.risk_level ? levelBadge(h.risk_level) : ''}</td>
+    </tr>`).join('');
+  box.innerHTML = `<table><tr><th>Time</th><th>Operation</th><th>Target</th><th>Result</th></tr>${rows}</table>`;
+}
+
+// ---------- Boot ----------
+checkStatus();
+loadDashboard();
+setInterval(checkStatus, 15000);
+</script>
+</body>
+</html>

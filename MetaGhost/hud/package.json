@@ -1,0 +1,14 @@
+{
+  "name": "metaghost-hud",
+  "version": "4.0.0",
+  "description": "Native GUI console for the MetaGhost forensics & anonymization engine",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "HackOps Academy",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}

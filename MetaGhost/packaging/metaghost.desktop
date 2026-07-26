@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=MetaGhost
+Comment=Advanced metadata forensics & anonymization console
+Exec=__LAUNCHER__
+Icon=metaghost
+Terminal=false
+Categories=Security;Utility;
+StartupWMClass=MetaGhost

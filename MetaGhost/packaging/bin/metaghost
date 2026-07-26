@@ -1,0 +1,69 @@
+#!/bin/bash
+# metaghost - launcher for the MetaGhost forensics & anonymization console
+# (HackOps Academy)
+#
+# Installed by packaging/install.sh. Starts the local Flask API in the
+# background, then launches the Electron HUD in the foreground. When the
+# HUD window is closed, the background API is stopped automatically.
+set -uo pipefail
+
+METAGHOST_HOME="${METAGHOST_HOME:-$HOME/.local/share/metaghost}"
+RUN_DIR="$HOME/.local/share/metaghost-run"
+LOG_DIR="$RUN_DIR/logs"
+LOCK_FILE="$RUN_DIR/metaghost.lock"
+
+mkdir -p "$LOG_DIR"
+
+if [ ! -d "$METAGHOST_HOME/venv" ]; then
+    echo "[metaghost] Not installed correctly - venv missing at $METAGHOST_HOME/venv"
+    echo "[metaghost] Re-run the installer: ./packaging/install.sh"
+    exit 1
+fi
+
+# --- prevent double-launch (stale API instance stepping on the same port) ---
+if [ -f "$LOCK_FILE" ]; then
+    OLD_PID="$(cat "$LOCK_FILE" 2>/dev/null || true)"
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+        echo "[metaghost] MetaGhost already appears to be running (pid $OLD_PID)."
+        echo "[metaghost] Close the existing HUD window first, or remove $LOCK_FILE if this is stale."
+        exit 1
+    fi
+fi
+echo $$ > "$LOCK_FILE"
+
+API_PID=""
+
+cleanup() {
+    echo "[metaghost] shutting down API..."
+    [ -n "$API_PID" ] && kill "$API_PID" 2>/dev/null
+    rm -f "$LOCK_FILE"
+}
+trap cleanup EXIT INT TERM
+
+echo "[metaghost] starting API on 127.0.0.1:8077 ..."
+(
+    cd "$METAGHOST_HOME/server" || exit 1
+    exec "$METAGHOST_HOME/venv/bin/python3" server.py
+) >"$LOG_DIR/api.log" 2>&1 &
+API_PID=$!
+
+# give the API a moment to come up before the HUD tries to connect
+sleep 1.5
+
+if ! kill -0 "$API_PID" 2>/dev/null; then
+    echo "[metaghost] WARNING: API failed to start - see $LOG_DIR/api.log"
+fi
+
+echo "[metaghost] launching HUD..."
+cd "$METAGHOST_HOME/hud" || exit 1
+
+if [ -x "./node_modules/.bin/electron" ]; then
+    ./node_modules/.bin/electron . "$@"
+elif command -v electron >/dev/null 2>&1; then
+    electron . "$@"
+else
+    echo "[metaghost] Electron not found in $METAGHOST_HOME/hud/node_modules - reinstall MetaGhost."
+    exit 1
+fi
+
+# cleanup runs automatically via the EXIT trap once the HUD window closes
